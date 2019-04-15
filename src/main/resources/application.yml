@@ -1,0 +1,22 @@
+spring:
+  rabbitmq:
+    common:
+      username: admin
+      password: pass
+      host: localhost
+      port: 5672
+    sms-sender:
+      queue: smsSenderQueue
+      exchange: smsSenderExchange
+      routingKey: smsSenderRoutingKey
+      deadQueue: smsDeadQueue
+      deadExchange: smsDeadExchange
+      deadRoutingKey: smsDeadRoutingKey
+      retryMaxAttempts: 5
+      retryInitialInterval: 1000
+      retryMultiplier: 2
+      retryMaxInterval: 10000
+    email-sender:
+      queue: emailSenderQueue
+      exchange: emailSenderExchange
+      routingKey: emailSenderRoutingKey
