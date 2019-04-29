@@ -1,5 +1,7 @@
 package kz.infin.it.smssender.config;
 
+import java.util.HashMap;
+import java.util.Map;
 import kz.infin.it.common.config.IRabbitConfig;
 import kz.infin.it.common.parser.MessageParser;
 import kz.infin.it.common.sender.NotificationSender;
@@ -22,6 +24,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.interceptor.RetryInterceptorBuilder;
+import org.springframework.retry.interceptor.RetryOperationsInterceptor;
+import org.springframework.retry.policy.SimpleRetryPolicy;
 
 @Configuration("smsRabbitConfig")
 public class RabbitConfig implements IRabbitConfig {
@@ -34,7 +39,12 @@ public class RabbitConfig implements IRabbitConfig {
 
     @Bean("smsQueue")
     public Queue queue() {
-        return new Queue(configProperties.getQueue());
+
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("x-dead-letter-exchange", configProperties.getDeadExchange());
+        arguments.put("x-dead-letter-routing-key", configProperties.getDeadRoutingKey());
+
+        return new Queue(configProperties.getQueue(), true, false, false, arguments);
     }
 
     @Bean("smsExchange")
@@ -65,6 +75,10 @@ public class RabbitConfig implements IRabbitConfig {
         container.setMaxConcurrentConsumers(10);
         container.setAcknowledgeMode(AcknowledgeMode.AUTO);
         container.setMessageListener(new MessageListenerAdapter(reciever()));
+
+        container.setDefaultRequeueRejected(false);
+        container.setAdviceChain(workMessagesRetryInterceptor());
+
         return container;
     }
 
@@ -81,6 +95,42 @@ public class RabbitConfig implements IRabbitConfig {
     @Bean("smsSender")
     public NotificationSender<SmsDto> sender() {
         return new SmsSender();
+    }
+
+    @Bean
+    public SimpleRetryPolicy rejectionRetryPolicy(){
+        return new SimpleRetryPolicy(configProperties.getRetryMaxAttempts());
+    }
+
+    @Bean
+    public RetryOperationsInterceptor workMessagesRetryInterceptor() {
+        return RetryInterceptorBuilder
+            .stateless()
+            .retryPolicy(rejectionRetryPolicy())
+            .backOffOptions(
+                configProperties.getRetryInitialInterval(),
+                configProperties.getRetryMultiplier(),
+                configProperties.getRetryMaxInterval())
+            .build();
+    }
+
+    @Bean("deadQueue")
+    public Queue deadQueue() {
+        return new Queue(configProperties.getDeadQueue());
+    }
+
+    @Bean("deadExchange")
+    public DirectExchange deadExchange() {
+        return new DirectExchange(configProperties.getDeadExchange());
+    }
+
+    @Bean
+    @Qualifier("deadBinding")
+    public Binding deadBinding() {
+        return BindingBuilder
+            .bind(deadQueue())
+            .to(deadExchange())
+            .with(configProperties.getDeadRoutingKey());
     }
 
 }

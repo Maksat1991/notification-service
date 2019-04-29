@@ -15,4 +15,18 @@ public class ConfigProperties {
 
     private String routingKey;
 
+    private String deadQueue;
+
+    private String deadExchange;
+
+    private String deadRoutingKey;
+
+    private int retryMaxAttempts;
+
+    private int retryInitialInterval;
+
+    private int retryMultiplier;
+
+    private int retryMaxInterval;
+
 }

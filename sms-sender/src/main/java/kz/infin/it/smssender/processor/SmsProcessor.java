@@ -15,6 +15,7 @@ public class SmsProcessor extends NotificationProcessor<SmsDto> {
     @Override
     protected void sendToProcessing(SmsDto dto) {
         System.out.println(dto);
+        throw new RuntimeException("runtime exception");
     }
 
     @Override
